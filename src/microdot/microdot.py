@@ -923,7 +923,7 @@ class Microdot:
         self.error_handlers = {}
         self.shutdown_requested = False
         self.options_handler = self.default_options_handler
-        self.debug = False
+        self.logger = None
         self.server = None
 
     def route(self, url_pattern, methods=None):
@@ -1168,7 +1168,7 @@ class Microdot:
         """
         raise HTTPException(status_code, reason)
 
-    async def start_server(self, host='0.0.0.0', port=5000, debug=False,
+    async def start_server(self, host='0.0.0.0', port=5000, debug=False, logger=None,
                            ssl=None):
         """Start the Microdot web server as a coroutine. This coroutine does
         not normally return, as the server enters an endless listening loop.
@@ -1207,7 +1207,7 @@ class Microdot:
 
             asyncio.run(main())
         """
-        self.debug = debug
+        self.logger = logger if logger is not None else print if debug else None
 
         async def serve(reader, writer):
             if not hasattr(writer, 'awrite'):  # pragma: no cover
@@ -1226,8 +1226,8 @@ class Microdot:
 
             await self.handle_request(reader, writer)
 
-        if self.debug:  # pragma: no cover
-            print('Starting async server on {host}:{port}...'.format(
+        if self.logger is not None:  # pragma: no cover
+            self.logger('Starting async server on {host}:{port}...'.format(
                 host=host, port=port))
 
         try:
@@ -1250,7 +1250,7 @@ class Microdot:
                 # wait a bit and try again
                 await asyncio.sleep(0.1)
 
-    def run(self, host='0.0.0.0', port=5000, debug=False, ssl=None):
+    def run(self, host='0.0.0.0', port=5000, debug=False, logger=None, ssl=None):
         """Start the web server. This function does not normally return, as
         the server enters an endless listening loop. The :func:`shutdown`
         function provides a method for terminating the server gracefully.
@@ -1281,7 +1281,7 @@ class Microdot:
 
             app.run(debug=True)
         """
-        asyncio.run(self.start_server(host=host, port=port, debug=debug,
+        asyncio.run(self.start_server(host=host, port=port, debug=debug, logger=logger,
                                       ssl=ssl))  # pragma: no cover
 
     def shutdown(self):
@@ -1344,8 +1344,8 @@ class Microdot:
                 pass
             else:
                 raise
-        if self.debug and req:  # pragma: no cover
-            print('{method} {path} {status_code}'.format(
+        if self.logger is not None and req:  # pragma: no cover
+            self.logger('{method} {path} {status_code}'.format(
                 method=req.method, path=req.path,
                 status_code=res.status_code))
 
